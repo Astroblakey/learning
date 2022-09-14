@@ -6,9 +6,10 @@ import sys
 
 matrix = np.random.rand(100,100)
 newmatrix = matrix
-newmatrix[25:30,25:30] = 10
-newmatrix[25:30,75:80] = 10
-newmatrix[60:80,40:60] = 10
+##
+# newmatrix[25:30,25:30] = 10
+# newmatrix[25:30,75:80] = 10
+# newmatrix[60:80,40:60] = 10
 plt.matshow(newmatrix)
 plt.xlabel("X-Axis ")
 plt.ylabel("Y-Axis")
