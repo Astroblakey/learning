@@ -6,64 +6,39 @@ from numpy import sqrt
 import math
 from math import *
 import sys
-# This code is for Blake to test out random variables and form a covariance matrix out of a randomized gaussian distribution
-# Written by Blake, 9/14/2022
 
-matrix = np.random.rand(100,100)
-newmatrix = matrix
-##
-# newmatrix[25:30,25:30] = 10
-# newmatrix[25:30,75:80] = 10
-# newmatrix[60:80,40:60] = 10
-plt.matshow(newmatrix)
-plt.xlabel("X-Axis ")
-plt.ylabel("Y-Axis")
-#plt.show()
-
-#Fun part: trying to propagate an orbit
+#Objective:
 #Using the TLE of the ISS, propagate its orbit for a whole day/month/etc.
 
 # 1 25544U 98067A   22258.32873485  .00008862  00000+0  16183-3 0  9994
 # 2 25544  51.6423 250.0020 0002297 234.9336 199.8491 15.50219806359164
 
-i = 51.6423*3.1415/180     #rads
-OMEGA = 250.0020*3.1415/180 #rads
+i = 51.6423*3.1415/180              #rads
+OMEGA = 250.0020*3.1415/180         #rads
 e = 0.002297 
-w = 234.9336*3.1415/180     #rads
-M = 199.8491*3.1415/180     #rads
-n = 15.50219806             #mean motion
-t_span = np.linspace(0,864000,864000)
-mu = 3.986*10**14 #units in m^3/s^2
-
-#solving kepler's problem
-m = 0
-E = 0.5
-diff = 1
-while diff > 10**-7:
-    mi = E - e*sin(E)
-    diff = m - mi
-    dm = 1 - e*cos(E)
-    Ei = E + (diff)/(dm)
-    diff = abs(m - mi)
-    E = Ei
-    
+w = 234.9336*3.1415/180             #rads
+M = 199.8491*3.1415/180             #rads
+n = 15.50219806                     #mean motion, rev/day
+t_span = np.linspace(0,8640000,864000) #time span in seconds, (start, stop, #elements)
+mu = 3.986*10**14                   #units in m^3/s^2
+# Solving kepler's problem
 global f
+E = M + (e - (1/8)*e**3)*sin(M) + ((1/2)*e**2)*sin(2*M) + ((3/8)*e**3)*sin(3*M)
 f = 2*atan((sqrt((1+e)/(1-e))*tan(E/2)))
-#convert orbital elements to a vector
+#convert orbital elements to vectors
 def eltovec():
-    mu = 3.986*10**14 #units in m^3/s^2
-    i = 51.6423*3.1415/180     #rads
+    mu = 3.986*10**14           #units in m^3/s^2
+    i = 51.6423*3.1415/180      #rads
     OMEGA = 250.0020*3.1415/180 #rads
     e = 0.002297 
     w = 234.9336*3.1415/180     #rads
     M = 199.8491*3.1415/180     #rads
-    n = 15.50219806             #mean motion
+    n = 15.50219806             #mean motion, rev/day
     a = (mu**(1/3))/((2*3.14159*n)/86400)**(2/3)
-    print(a)
-    global r,v,R
+    global rECI,vECI
     mu = 3.986*10**14
-    rp = a*(1-e) #perigee radius
-    vp = sqrt(mu*((2/rp) - (1/a))) #perigee velocity
+    rp = a*(1-e)                    #perigee radius
+    vp = sqrt(mu*((2/rp) - (1/a)))  #perigee velocity
     h = rp*vp
     r = (((h**2)/(mu))/(1 + e*cos(f)))
     latus = a*(1-e**2)
@@ -71,7 +46,7 @@ def eltovec():
     Q = r*sin(f)
     perifocal = ([P],[Q],[0])
     R11 = cos(OMEGA)*cos(w) - sin(OMEGA)*sin(w)*cos(i)
-    R12 = -cos(OMEGA)*sin(OMEGA) - sin(OMEGA)*cos(w)*cos(i)
+    R12 = -cos(OMEGA)*sin(w) - sin(OMEGA)*cos(w)*cos(i)
     R13 = sin(OMEGA)*sin(i)
     R21 = sin(OMEGA)*cos(w) + cos(OMEGA)*sin(w)*cos(i)
     R22 = -sin(OMEGA)*sin(w) + cos(OMEGA)*cos(w)*cos(i)
@@ -81,68 +56,90 @@ def eltovec():
     R33 = cos(i)
     R = np.array([[R11,R12,R13],[R21,R22,R23],[R31,R32,R33]])
     r = R@perifocal
+
+    #Convert perifocal r to ECI r
+    R3O = np.array([[cos(OMEGA),sin(OMEGA),0],[-sin(OMEGA),cos(OMEGA),0],[0,0,1]])
+    R1 = np.array([[1,0,0],[0,cos(i),sin(i)],[0,-sin(i),cos(i)]])
+    R3o = np.array([[cos(w),sin(w),0],[-sin(w),cos(w),0],[0,0,1]])
+    rECI = R3O@R1@R3o@r
+
     #now to find the velocity
-    P = sqrt((mu)/(latus)*(-sin(f)))
-    Q = sqrt((mu)/(latus)*(e + cos(f)))
+    P = sqrt((mu)/(latus))*(-sin(f))
+    Q = sqrt((mu)/(latus))*(e + cos(f))
     v = sqrt(P**2 + Q**2)
     perifocalv = ([P],[Q],[0])
-    
     v = R@perifocalv
-    return r,v
+    vECI = R3O@R1@R3o@v
+    vECI = np.vstack(vECI)
+    return rECI,vECI
 eltovec()
 
+#Orbit Propagator
 def orbdyn(x,t):
-    mu = 3.986*10**14 #units in m^3/s^2
+    mu = 3.986*10**14   #units in m^3/s^2
     Re = 6378135.00     #Radius of Earth in meters
-    J2 = 0.00108263  #J2 Parameter for Earth Obliqueness
-    r2 = sqrt(x[0]**2 + x[1]**2 + x[2]**2)
-    Coeff = (-3/2*J2*(mu/r2**2)*(Re/r2)**2)
+    J2 = 0.00108263     #J2 Parameter for Earth Obliqueness
     dx = np.zeros([6,1], dtype = float)
-    dx[0] = x[3]
-    dx[1] = x[4]
-    dx[2] = x[5]
-    dx[3] = (-mu/r2**3)*x[0] 
-    dx[4] = (-mu/r2**3)*x[1] 
-    dx[5] = (-mu/r2**3)*x[2] 
-    dx = dx.reshape(6,)
-    return dx
-y0 = np.concatenate((r,v))
-y0 = y0.reshape(6,)
-solution = scipy.integrate.odeint(orbdyn,y0,t_span)
-#plotting Earth
-from mpl_toolkits.mplot3d import Axes3D
+    i = x[0]
+    j = x[1]
+    k = x[2]
+    r2 = (i**2 + j**2 + k**2)
+    Coeff = (-3/2*J2*(mu/r2**2)*(Re/r2)**2)
+    xdot = x[3]
+    ydot = x[4]
+    zdot = x[5]
+    xddot = -mu * i/ (r2) ** (3/2) + Coeff*(1-5*((x[2]/r2)**2))*(x[0]/r2)
+    yddot = -mu * j/ (r2) ** (3/2) + Coeff*(1-5*((x[2]/r2)**2))*(x[1]/r2)
+    zddot = -mu * k/ (r2) ** (3/2)  + Coeff*(3-5*((x[2]/r2)**2))*(x[2]/r2)
+    dstated = [xdot, ydot, zdot, xddot, yddot, zddot]
+    return dstated
 
-fig = plt.figure(figsize=plt.figaspect(1))  # Square figure
-ax = fig.add_subplot(111, projection='3d')
+#state initial conditions
+X_0 = rECI[0]  # [m]
+Y_0 = rECI[1]   # [m]
+Z_0 = rECI[2]   # [m]
+VX_0 = vECI[0]  # [m/s]
+VY_0 = vECI[1]   # [m/s]
+VZ_0 = vECI[2]   # [m/s]
 
-# Radii corresponding to the coefficients:
-rx = 6378135
-ry = 6378135
-rz = 6371009
+state_0 = [X_0, Y_0, Z_0, VX_0, VY_0, VZ_0]
+state_0 = np.vstack(state_0)
+state_0 = state_0.reshape(6,)
 
-# Set of all spherical angles:
-u = np.linspace(0, 2 * np.pi, 100)
-v = np.linspace(0, np.pi, 100)
+#solving system
+solution = odeint(orbdyn,state_0,t_span)
+x_pos = solution[:,0]
+y_pos = solution[:,1]
+z_pos = solution[:,2]
+# Setting up Spherical Earth to Plot
+N = 50
+phi = np.linspace(0, 2 * np.pi, N)
+theta = np.linspace(0, np.pi, N)
+theta, phi = np.meshgrid(theta, phi)
 
-# Cartesian coordinates that correspond to the spherical angles:
-# (this is the equation of an ellipsoid):
-x = rx * np.outer(np.cos(u), np.sin(v))
-y = ry * np.outer(np.sin(u), np.sin(v))
-z = rz * np.outer(np.ones_like(u), np.cos(v))
+r_Earth = 6378140  # Average radius of Earth [km]
+X_Earth = r_Earth * np.cos(phi) * np.sin(theta)
+Y_Earth = r_Earth * np.sin(phi) * np.sin(theta)
+Z_Earth = r_Earth * np.cos(theta)
 
-# Plot:
-ax.plot_surface(x, y, z,  rstride=4, cstride=4, color='b')
-
-# Adjustment of the axes, so that they all have the same span:
-max_radius = max(rx, ry, rz)
-for axis in 'xyz':
-    getattr(ax, 'set_{}lim'.format(axis))((-max_radius, max_radius))
-plt.show()
-
-#plotting the orbit
+# Plotting Earth and Orbit
+fig = plt.figure()
 ax = plt.axes(projection='3d')
-ax.plot3D(solution[:,1], solution[:,2], solution[:,3]*1000, 'red')
-plt.gca().set_aspect('equal', adjustable='box')
+ax.plot_surface(X_Earth, Y_Earth, Z_Earth, color='blue', alpha=0.7)
+ax.plot3D(x_pos, y_pos, z_pos, 'red')
+ax.view_init(30, 145)  # Changing viewing angle (adjust as needed)
+plt.title('Two-Body Orbit')
+ax.set_xlabel('X [m]')
+ax.set_ylabel('Y [m]')
+ax.set_zlabel('Z [m]')
+
+# Make axes limits
+xyzlim = np.array([ax.get_xlim3d(), ax.get_ylim3d(),      
+                   ax.get_zlim3d()]).T
+XYZlim = np.asarray([min(xyzlim[0]), max(xyzlim[1])])
+ax.set_xlim3d(XYZlim)
+ax.set_ylim3d(XYZlim)
+ax.set_zlim3d(XYZlim * 3/4)
 plt.show()
 
 
