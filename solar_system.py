@@ -8,12 +8,8 @@ import math
 from math import *
 import sys
 
-#ISS TLE for reference
-# 1 25544U 98067A   22258.32873485  .00008862  00000+0  16183-3 0  9994
-# 2 25544  51.6423 250.0020 0002297 234.9336 199.8491 15.50219806359164
-
 TLEs = []
-with open("TLE.txt", "r") as fd:
+with open("planets.txt", "r") as fd:
     lines = fd.readlines()
 
     # Loop through all lines, ignoring header.
@@ -27,6 +23,7 @@ fig = plt.figure(1)
 ax = plt.axes(projection='3d')
 
 for x in range(lines):
+
     global i,OMEGA,e,w,M,n,t_span,mu,f
     i = np.radians(float(values[x][2]))
     OMEGA = np.radians(float(values[x][3]))
@@ -34,8 +31,8 @@ for x in range(lines):
     w = np.radians(float(values[x][5]))
     M = np.radians(float(values[x][6]))
     n = float(values[x][7])
-    t_span = np.linspace(0,246240000,246240)    #time span in seconds, (start, stop, #elements)
-    mu = 3.986*10**14                      #units in m^3/s^2
+    t_span = np.linspace(0,24624000,246240)    #time span in seconds, (start, stop, #elements)
+    mu = 1.3271*10**20                    #units in m^3/s^2
 
     # Solving kepler's problem (using a Fourier expression)
     E = M + (e - (1/8)*e**3)*sin(M) + ((1/2)*e**2)*sin(2*M) + ((3/8)*e**3)*sin(3*M)
@@ -84,7 +81,7 @@ for x in range(lines):
 
     #Orbit Propagator
     def orbdyn(x,t):  #units in m^3/s^2
-        Re = 6378135.00     #Radius of Earth in meters
+        Re = 695700000    #Radius of Earth in meters
         J2 = 0.00108263     #J2 Parameter for Earth Obliqueness
         dx = np.zeros([6,1], dtype = float)
         i = x[0]
@@ -125,7 +122,7 @@ for x in range(lines):
     theta = np.linspace(0, np.pi, N)
     theta, phi = np.meshgrid(theta, phi)
 
-    r_Earth = 6378140  # Average radius of Earth (m)
+    r_Earth = 695700000  # Average radius of sun (m)
     X_Earth = r_Earth * np.cos(phi) * np.sin(theta)
     Y_Earth = r_Earth * np.sin(phi) * np.sin(theta)
     Z_Earth = r_Earth * np.cos(theta)
@@ -134,7 +131,7 @@ for x in range(lines):
     ax.plot_surface(X_Earth, Y_Earth, Z_Earth, color='yellow', alpha=0.99)
     ax.plot3D(x_pos, y_pos, z_pos, 'red')
     ax.view_init(30, 145)  # Changing viewing angle (adjust as needed)
-    plt.title('Solar System')
+    plt.title('Two-Body Orbit')
     ax.set_xlabel('X [m]')
     ax.set_ylabel('Y [m]')
     ax.set_zlabel('Z [m]')
