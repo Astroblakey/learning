@@ -14,15 +14,31 @@ import sys
 # 1 25544U 98067A   22258.32873485  .00008862  00000+0  16183-3 0  9994
 # 2 25544  51.6423 250.0020 0002297 234.9336 199.8491 15.50219806359164
 
-#Define constants
+#Open TLE and read file
+fo = open("TLE.txt", "r")
+name = fo.readline()
+
+print("Generating orbit for " + name)
+
+TLEs = []
+with open("TLE.txt", "r") as fd:
+    lines = fd.readlines()
+
+    # Loop through all lines, ignoring header.
+    # Add last element to list 
+    for l in lines[2:3]:
+        TLEs.append(l.split())
+values = np.array(TLEs)
+values = np.vstack(values)
+
 global i,OMEGA,e,w,M,n,t_span,mu,f
-i = 51.6423*3.1415/180                 #rads
-OMEGA = 250.0020*3.1415/180            #rads
-e = 0.002297 
-w = 234.9336*3.1415/180                #rads
-M = 199.8491*3.1415/180                #rads
-n = 15.50219806                        #mean motion, rev/day
-t_span = np.linspace(0,864000,864000) #time span in seconds, (start, stop, #elements)
+i = np.radians(float(values[0][2]))
+OMEGA = np.radians(float(values[0][3]))
+e = float(values[0][4])*0.0000001
+w = np.radians(float(values[0][5]))
+M = np.radians(float(values[0][6]))
+n = float(values[0][7])
+t_span = np.linspace(0,86400,86400)    #time span in seconds, (start, stop, #elements)
 mu = 3.986*10**14                      #units in m^3/s^2
 
 # Solving kepler's problem (using a Fourier expression)
@@ -71,8 +87,7 @@ def eltovec():
 eltovec()
 
 #Orbit Propagator
-def orbdyn(x,t):
-    mu = 3.986*10**14   #units in m^3/s^2
+def orbdyn(x,t):  #units in m^3/s^2
     Re = 6378135.00     #Radius of Earth in meters
     J2 = 0.00108263     #J2 Parameter for Earth Obliqueness
     dx = np.zeros([6,1], dtype = float)
