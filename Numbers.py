@@ -1,3 +1,4 @@
+#Import all the packages needed
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as scipy
@@ -13,30 +14,25 @@ import sys
 # 1 25544U 98067A   22258.32873485  .00008862  00000+0  16183-3 0  9994
 # 2 25544  51.6423 250.0020 0002297 234.9336 199.8491 15.50219806359164
 
-i = 51.6423*3.1415/180              #rads
-OMEGA = 250.0020*3.1415/180         #rads
+#Define constants
+global i,OMEGA,e,w,M,n,t_span,mu,f
+i = 51.6423*3.1415/180                 #rads
+OMEGA = 250.0020*3.1415/180            #rads
 e = 0.002297 
-w = 234.9336*3.1415/180             #rads
-M = 199.8491*3.1415/180             #rads
-n = 15.50219806                     #mean motion, rev/day
-t_span = np.linspace(0,8640000,864000) #time span in seconds, (start, stop, #elements)
-mu = 3.986*10**14                   #units in m^3/s^2
-# Solving kepler's problem
-global f
+w = 234.9336*3.1415/180                #rads
+M = 199.8491*3.1415/180                #rads
+n = 15.50219806                        #mean motion, rev/day
+t_span = np.linspace(0,864000,864000) #time span in seconds, (start, stop, #elements)
+mu = 3.986*10**14                      #units in m^3/s^2
+
+# Solving kepler's problem (using a Fourier expression)
 E = M + (e - (1/8)*e**3)*sin(M) + ((1/2)*e**2)*sin(2*M) + ((3/8)*e**3)*sin(3*M)
 f = 2*atan((sqrt((1+e)/(1-e))*tan(E/2)))
 #convert orbital elements to vectors
 def eltovec():
-    mu = 3.986*10**14           #units in m^3/s^2
-    i = 51.6423*3.1415/180      #rads
-    OMEGA = 250.0020*3.1415/180 #rads
-    e = 0.002297 
-    w = 234.9336*3.1415/180     #rads
-    M = 199.8491*3.1415/180     #rads
-    n = 15.50219806             #mean motion, rev/day
+    #Calculate values needed to transform to perifocal frame
     a = (mu**(1/3))/((2*3.14159*n)/86400)**(2/3)
     global rECI,vECI
-    mu = 3.986*10**14
     rp = a*(1-e)                    #perigee radius
     vp = sqrt(mu*((2/rp) - (1/a)))  #perigee velocity
     h = rp*vp
@@ -88,9 +84,9 @@ def orbdyn(x,t):
     xdot = x[3]
     ydot = x[4]
     zdot = x[5]
-    xddot = -mu * i/ (r2) ** (3/2) + Coeff*(1-5*((x[2]/r2)**2))*(x[0]/r2)
-    yddot = -mu * j/ (r2) ** (3/2) + Coeff*(1-5*((x[2]/r2)**2))*(x[1]/r2)
-    zddot = -mu * k/ (r2) ** (3/2)  + Coeff*(3-5*((x[2]/r2)**2))*(x[2]/r2)
+    xddot = -mu * i/ (r2) ** (3/2) + Coeff * (1-5 * ((x[2]/r2) ** 2)) * (x[0]/r2)
+    yddot = -mu * j/ (r2) ** (3/2) + Coeff * (1-5 * ((x[2]/r2) ** 2)) * (x[1]/r2)
+    zddot = -mu * k/ (r2) ** (3/2)  + Coeff * (3-5 * ((x[2]/r2) ** 2)) * (x[2]/r2)
     dstated = [xdot, ydot, zdot, xddot, yddot, zddot]
     return dstated
 
@@ -104,20 +100,21 @@ VZ_0 = vECI[2]   # [m/s]
 
 state_0 = [X_0, Y_0, Z_0, VX_0, VY_0, VZ_0]
 state_0 = np.vstack(state_0)
-state_0 = state_0.reshape(6,)
+state_0 = state_0.reshape(6,) #for some reason it needs to be 1-D, so use reshape to allow that
 
 #solving system
-solution = odeint(orbdyn,state_0,t_span)
+solution = odeint(orbdyn,state_0,t_span) #solve using odeint
 x_pos = solution[:,0]
 y_pos = solution[:,1]
 z_pos = solution[:,2]
+
 # Setting up Spherical Earth to Plot
-N = 50
+N = 150
 phi = np.linspace(0, 2 * np.pi, N)
 theta = np.linspace(0, np.pi, N)
 theta, phi = np.meshgrid(theta, phi)
 
-r_Earth = 6378140  # Average radius of Earth [km]
+r_Earth = 6378140  # Average radius of Earth (m)
 X_Earth = r_Earth * np.cos(phi) * np.sin(theta)
 Y_Earth = r_Earth * np.sin(phi) * np.sin(theta)
 Z_Earth = r_Earth * np.cos(theta)
@@ -141,8 +138,3 @@ ax.set_xlim3d(XYZlim)
 ax.set_ylim3d(XYZlim)
 ax.set_zlim3d(XYZlim * 3/4)
 plt.show()
-
-
-
-
-
