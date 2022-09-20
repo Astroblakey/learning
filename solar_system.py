@@ -31,7 +31,7 @@ for x in range(lines):
     w = np.radians(float(values[x][5]))
     M = np.radians(float(values[x][6]))
     n = float(values[x][7])
-    t_span = np.linspace(0,24624000,246240)    #time span in seconds, (start, stop, #elements)
+    t_span = np.linspace(0,2462400000,246240)    #time span in seconds, (start, stop, #elements)
     mu = 1.3271*10**20                    #units in m^3/s^2
 
     # Solving kepler's problem (using a Fourier expression)
